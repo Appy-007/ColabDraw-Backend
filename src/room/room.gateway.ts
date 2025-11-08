@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { UseGuards } from '@nestjs/common';
 import {
   OnGatewayConnection,
@@ -9,6 +12,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { WsGuard } from './room.guard';
 import { RoomService } from './room.service';
+import { JwtService } from '@nestjs/jwt';
+import { WsMiddleWare } from './room.middleware';
 
 @WebSocketGateway({
   cors: {
@@ -16,34 +21,61 @@ import { RoomService } from './room.service';
   },
 })
 export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
-  constructor(private readonly roomService: RoomService) {}
+  constructor(
+    private readonly roomService: RoomService,
+    private readonly jwtService: JwtService,
+  ) {}
   @WebSocketServer() server: Server;
 
-  afterInit() {
+  afterInit(server: Server) {
     console.log('Whiteboard Gateway Initialized.');
+    server.use(WsMiddleWare(this.jwtService) as any);
   }
 
   handleConnection(client: Socket, ...args: any[]) {
-    console.log(`Client connected: ${client.id}. User: ${client.data?.user?.username}`);
+    console.log('FROM CLIENT', client?.data?.user);
+    console.log(
+      `Client connected: ${client.id}. User: ${client.data?.user?.username}`,
+    );
+
+    client.on('disconnecting', async (reason) => {
+      // client.rooms is still populated here!
+      const roomsToLeave = Array.from(client.rooms).filter(
+        (room) => room !== client.id,
+      );
+
+      console.log('DISCONNECTING. ROOMS TO LEAVE:', roomsToLeave);
+
+      // Now you can perform the room cleanup logic here
+      await this.processRoomCleanup(client, roomsToLeave);
+    });
   }
 
-  async handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {
     console.log(`Client disconnected: ${client.id}`);
     const activeRooms = Array.from(client.rooms).filter(
       (room) => room !== client.id,
     );
 
+    console.log('ACTIVE ROOMS', activeRooms);
+  }
+
+  async processRoomCleanup(client: Socket, activeRooms: string[]) {
     for (const roomId of activeRooms) {
-      const email: string = client.data.email;
+      const email: string = client.data.user.email;
+      console.log('DISCONNECTING...', email, roomId);
       try {
-        await this.roomService.removeUserFromRoom(roomId, email);
+        const response = await this.roomService.removeUserFromRoom(
+          roomId,
+          email,
+        );
         client.to(roomId).emit('userLeft', {
-          userId: client.data.userId,
-          message: `${client.data.userId} has left the room.`,
+          userId: client.data.user.email,
+          message: `${client.data.user.username} has left the room.`,
+          count: response.data.joinedUsers.length,
         });
       } catch (error) {
-        console.log(error);
-        throw new Error('Error occured in deleting data');
+        console.error(`Error deleting user data for room ${roomId}:`, error);
       }
     }
   }
@@ -67,12 +99,11 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
 
       client.emit('roomCreated', {
         roomId: roomData.roomId,
-        users: roomData.joinedUsers.length,
+        count: roomData.joinedUsers.length,
         message: 'Successfully created & joined room.',
       });
 
-      // console.log('EXECUTED A');
-      return { event: 'roomCreated', data: { roomId } };
+      console.log('EXECUTED CREATE ROOM SOCKET');
     } catch (error) {
       console.log(error);
     }
@@ -104,11 +135,49 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
         message: `${user} has joined the room.`,
       });
 
-      // console.log('EXECUTED B');
-
-      return { event: 'userJoined', data: { roomId } };
+      client.emit('roomJoined', {
+        count: roomData.joinedUsers.length,
+        message: 'Successfully joined the room',
+      });
     } catch (error) {
       console.log(error);
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('leaveRoom')
+  async handleLeaveRoom(client: Socket, payload: { roomId: string }) {
+    const { roomId } = payload;
+    const email = client.data.user.email;
+    const username = client.data.user?.username ?? '';
+    console.log(`User ${username} has left the room`);
+
+    if (!client.rooms.has(roomId)) {
+      client.emit('roomError', {
+        message: `You are not currently in room: ${roomId}.`,
+      });
+      return;
+    }
+
+    try {
+      await client.leave(roomId);
+      console.log('EMAIL IN LEAVE ROOM', email);
+      const response = await this.roomService.removeUserFromRoom(roomId, email);
+      console.log('CURRENT USERS', response.data);
+      client.to(roomId).emit('userLeft', {
+        userId: client.data.user.email,
+        message: `${client.data.user.username} has left the room.`,
+        count: response.data.joinedUsers.length,
+      });
+      client.emit('roomLeft', {
+        roomId: roomId,
+        message: 'Successfully left the room.',
+      });
+    } catch (error) {
+      console.error(`Error deleting user data for room ${roomId}:`, error);
+      client.emit('roomError', {
+        message: 'An error occurred while trying to leave the room.',
+      });
     }
   }
 }

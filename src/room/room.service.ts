@@ -45,7 +45,7 @@ export class RoomService {
     };
     const response = await this.roomModel.create(roomData);
     return {
-      message: 'Room Create successfully',
+      message: 'Room Created successfully',
       data: response,
     };
   }
@@ -96,6 +96,8 @@ export class RoomService {
 
     const joinedUsersArr = roomData[0].joinedUsers;
     const updatedUsers = joinedUsersArr.filter((item) => item != email);
+    console.log('EMAIL', email);
+    console.log('UPDATED JOINED USER ARR AFTER DELETE', updatedUsers);
     const response = await this.roomModel.findOneAndUpdate(
       { roomId },
       { joinedUsers: updatedUsers },
