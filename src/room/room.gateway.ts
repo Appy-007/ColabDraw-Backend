@@ -180,4 +180,65 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       });
     }
   }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('sendDrawingEvent')
+  async handleDrawingEvent(
+    client: Socket,
+    payload: { roomId: string; event: any },
+  ) {
+    const { roomId, event } = payload;
+    try {
+      console.log('IN SENDDRAWING EVENT');
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      client.to(roomId).emit('receiveDrawingEvent', {
+        event: event,
+      });
+    } catch (error) {
+      console.error(
+        `Error in sending drawing event for room ${roomId}:`,
+        error,
+      );
+      client.emit('roomError', {
+        message: 'An error occurred in sending drawing event to the room.',
+      });
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('sendDrawingUpdate')
+  async handleDrawingUpdate(
+    client: Socket,
+    payload: { roomId: string; type: string; index: number; point: number[] },
+  ) {
+    const { roomId, type, index, point } = payload;
+    console.log('IN SENDDRAWING UPDATE');
+    try {
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0 || type !== 'pencil_event') {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      client.to(roomId).emit('receiveDrawingUpdate', {
+        index: index,
+        point: point,
+      });
+    } catch (error) {
+      console.error(
+        `Error in sending drawing event for room ${roomId}:`,
+        error,
+      );
+      client.emit('roomError', {
+        message: 'An error occurred in sending drawing event to the room.',
+      });
+    }
+  }
 }
