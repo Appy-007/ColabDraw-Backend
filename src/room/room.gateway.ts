@@ -215,22 +215,39 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
   @SubscribeMessage('sendDrawingUpdate')
   async handleDrawingUpdate(
     client: Socket,
-    payload: { roomId: string; type: string; index: number; point: number[] },
+    payload: {
+      roomId: string;
+      type: string;
+      id: string;
+      point: number[];
+      currentX: number;
+      currentY: number;
+    },
   ) {
-    const { roomId, type, index, point } = payload;
+    const { roomId, type, id, point, currentX, currentY } = payload;
     console.log('IN SENDDRAWING UPDATE');
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0 || type !== 'pencil_event') {
+      if (!room || room.length == 0) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      client.to(roomId).emit('receiveDrawingUpdate', {
-        index: index,
-        point: point,
-      });
+      if (type === 'pencil_event') {
+        client.to(roomId).emit('receiveDrawingUpdate', {
+          id,
+          type,
+          point,
+        });
+      } else if (type === 'shape_event') {
+        client.to(roomId).emit('receiveDrawingUpdate', {
+          id,
+          type,
+          currentX,
+          currentY,
+        });
+      }
     } catch (error) {
       console.error(
         `Error in sending drawing event for room ${roomId}:`,
