@@ -18,6 +18,9 @@ export class Room {
 
   @Prop()
   expiredTime: Date;
+
+  @Prop()
+  scoreBoard: [];
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

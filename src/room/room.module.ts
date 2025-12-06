@@ -6,6 +6,7 @@ import { Room, RoomSchema } from './schemas/room.schema';
 import { AuthModule } from 'src/auth/auth.module';
 import { RoomController } from './room.controller';
 import { UserModule } from 'src/user/user.module';
+import { GameGateway } from './game.gateway';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { UserModule } from 'src/user/user.module';
     AuthModule,
     UserModule,
   ],
-  providers: [RoomGateway, RoomService],
+  providers: [RoomGateway, GameGateway, RoomService],
   controllers: [RoomController],
   exports: [RoomService],
 })
