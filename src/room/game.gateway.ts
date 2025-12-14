@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -61,10 +62,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
       }
       const roomData = room[0];
 
+      const currentRound = roomData.roundsLeft;
+
       const selectedWord = this.roomService.selectRandomWord();
       const maskedWord = selectedWord.replace(/[a-zA-Z]/g, '_');
 
       console.log('SELECTED WORD', selectedWord, maskedWord);
+
+      this.roomService.setCurrentWordForActiveRooms(roomId, selectedWord);
+
+      await this.roomService.updateRoomRound(roomId, currentRound - 1);
 
       client.emit('receiveStartGameForDrawer', {
         mode: 'playing',
@@ -76,9 +83,105 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
       client.broadcast.to(roomData.roomId).emit('receiveStartGame', {
         mode: 'playing',
         drawer: user,
-        word: maskedWord, // Masked word: '_____'
+        word: maskedWord,
         maskedWord: maskedWord,
       });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('checkWord')
+  async checkWord(
+    client: Socket,
+    payload: { roomId: string; userId: string; word: string },
+  ) {
+    const { roomId, userId, word } = payload;
+
+    try {
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      const roomData = room[0];
+      const selectedWord =
+        this.roomService.getCurrentWordForActiveRooms(roomId);
+      if (!selectedWord || !word?.trim()) {
+        client.emit('wrongGuess', {
+          message: 'Invalid answer...try again',
+        });
+        return;
+      }
+
+      if (
+        selectedWord.trim().toLocaleLowerCase() ===
+        word?.trim()?.toLocaleLowerCase()
+      ) {
+        const currentScoreBoard = roomData.scoreBoard;
+        const updatedScoreBoard =
+          currentScoreBoard &&
+          currentScoreBoard.map(
+            (item: { userId: string; username: string; score: number }) => {
+              if (item.userId === userId) {
+                return { ...item, score: item.score + 10 };
+              } else {
+                return item;
+              }
+            },
+          );
+        const response = await this.roomService.updateScoreBoard(
+          roomId,
+          updatedScoreBoard,
+        );
+        console.log('RESPONSE FROM DB', response);
+        if (!response.data) {
+          client.emit('wrongGuess', {
+            message: 'error in db ..try again',
+          });
+          return;
+        }
+        client.emit('correctGuess', {
+          message: 'You correctly guessed the word !!',
+        });
+        client.broadcast.to(roomId).emit('updateScoreBoard', {
+          scoreBoard: response.data.scoreBoard,
+        });
+        return;
+      } else {
+        client.emit('wrongGuess', {
+          message: 'wrong answer...try again',
+        });
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('roundEnd')
+  async roundEnd(client: Socket, payload: { roomId: string }) {
+    const { roomId } = payload;
+    try {
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      const roomData = room[0];
+      if (roomData.roundsLeft == 0) {
+        client.broadcast.to(roomData.roomId).emit('endGame', {
+          mode: 'finished',
+          message: 'Game ended ',
+          scoreBoard: roomData.scoreBoard,
+        });
+      }
     } catch (error) {
       console.log(error);
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Room } from './schemas/room.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -24,6 +25,16 @@ export class RoomService {
     @InjectModel(Room.name) private roomModel: Model<Room>,
     private userService: UserService,
   ) {}
+
+  private currentWordsForActiveRooms = {};
+
+  setCurrentWordForActiveRooms(roomId: string, word: string) {
+    this.currentWordsForActiveRooms[roomId] = word;
+  }
+
+  getCurrentWordForActiveRooms(roomId: string): string | undefined {
+    return this.currentWordsForActiveRooms[roomId];
+  }
 
   async checkIfRoomExists(roomId: string) {
     const room = await this.roomModel.find({ roomId });
@@ -59,6 +70,7 @@ export class RoomService {
     const expiredTime = new Date(expirationTimeMs);
     const roomData = {
       roomId: payload.roomId,
+      roundsLeft: 3,
       ownerName: payload.name,
       ownerEmailId: email,
       expiredTime,
@@ -144,8 +156,7 @@ export class RoomService {
     };
   }
 
-  async fetchRoomScoreBoard(roomId: string){
-    
+  async fetchRoomScoreBoard(roomId: string) {
     const roomData = await this.checkIfRoomExists(roomId);
     if (!roomData) {
       throw new HttpException(
@@ -157,6 +168,63 @@ export class RoomService {
     return {
       message: 'User deleted successfully',
       data: roomData[0].scoreBoard,
+    };
+  }
+
+  async updateScoreBoard(
+    roomId: string,
+    scoreBoard: { userId: string; username: string; score: number }[],
+  ) {
+    const roomData = await this.checkIfRoomExists(roomId);
+    if (!roomData) {
+      throw new HttpException(
+        'Could not find any room with this Id',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const response = await this.roomModel.findOneAndUpdate(
+      { roomId },
+      { scoreBoard: scoreBoard },
+      { new: true },
+    );
+
+    if (!response) {
+      throw new HttpException(
+        'Problem occured in updating database',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return {
+      message: 'User updated successfully',
+      data: response,
+    };
+  }
+
+  async updateRoomRound(roomId: string, round: number) {
+    const roomData = await this.checkIfRoomExists(roomId);
+    if (!roomData) {
+      throw new HttpException(
+        'Could not find any room with this Id',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const response = await this.roomModel.findOneAndUpdate(
+      { roomId },
+      { roundsLeft: round },
+    );
+
+    if (!response) {
+      throw new HttpException(
+        'Problem occured in updating database',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return {
+      message: 'Round updated successfully',
     };
   }
 }
