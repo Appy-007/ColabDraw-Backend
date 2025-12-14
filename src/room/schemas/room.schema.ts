@@ -7,6 +7,9 @@ export class Room {
   @Prop({ required: true, index: true, unique: true })
   roomId: string;
 
+  @Prop({ required: true })
+  roundsLeft: number;
+
   @Prop()
   ownerEmailId: string;
 
@@ -18,6 +21,9 @@ export class Room {
 
   @Prop()
   expiredTime: Date;
+
+  @Prop()
+  scoreBoard: [];
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

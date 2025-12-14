@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { RoomService } from './room.service';
 import { CreateRoomDTO } from './dto/create-room.dto';
@@ -30,5 +33,11 @@ export class RoomController {
   checkIfRoomExists(@Body() payload: CheckRoomIdDTO) {
     console.log('ROOM DETAILS', payload.roomId);
     return this.roomService.checkIfRoomExists(payload.roomId);
+  }
+
+  @Post('fetchRoomScoreBoard')
+  @UseGuards(AuthGuard)
+  fetchRoomScoreBoard(@Body() payload: CheckRoomIdDTO) {
+    return this.roomService.fetchRoomScoreBoard(payload.roomId);
   }
 }

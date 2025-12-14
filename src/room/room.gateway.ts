@@ -129,7 +129,8 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       await client.join(roomData.roomId);
 
       //BROADCAST to *all other clients* in the room (notification of new user)
-      client.to(roomData.roomId).emit('userJoined', {
+      client.broadcast.to(roomData.roomId).emit('userJoined', {
+        userId: client.data?.user?.email,
         username: user,
         count: roomData.joinedUsers.length,
         message: `${user} has joined the room.`,
@@ -255,6 +256,55 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       );
       client.emit('roomError', {
         message: 'An error occurred in sending drawing event to the room.',
+      });
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('sendUndoDrawingEvent')
+  async handleUndoDrawingEvent(
+    client: Socket,
+    payload: { roomId: string; id: string },
+  ) {
+    const { roomId, id } = payload;
+    try {
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      client.emit('receiveUndoDrawingEvent', { id });
+    } catch (error) {
+      console.log(error);
+      client.emit('roomError', {
+        message: 'An error occurred in sending undo drawing event to the room.',
+      });
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('sendRedoDrawingEvent')
+  async handleRedoDrawingEvent(
+    client: Socket,
+    payload: { roomId: string; id: string; event: any },
+  ) {
+    const { roomId, id, event } = payload;
+    try {
+      console.log('ID , EVENT', id, event);
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room || room.length == 0) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      client.emit('receiveRedoDrawingEvent', { event });
+    } catch (error) {
+      console.log(error);
+      client.emit('roomError', {
+        message: 'An error occurred in sending redo drawing event to the room.',
       });
     }
   }
