@@ -176,6 +176,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
       }
       const roomData = room[0];
       if (roomData.roundsLeft == 0) {
+        this.roomService.deleteRoomEntry(roomId);
         this.server.to(roomData.roomId).emit('endGame', {
           mode: 'finished',
           message: 'Game ended ',

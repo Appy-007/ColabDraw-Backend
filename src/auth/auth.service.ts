@@ -23,7 +23,6 @@ export class AuthService {
 
   async loginUser(payload: LoginUserDTO) {
     const response = await this.userService.checkIfUserExists(payload.email);
-    console.log('RES FROM USERDB IN USER EXISTS', response);
     if (!response)
       throw new HttpException(
         'User does not exits..check your email',
