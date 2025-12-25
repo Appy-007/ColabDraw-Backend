@@ -84,20 +84,23 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     const { roomId } = payload;
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      const roomData = room[0];
-      await client.join(roomData.roomId);
+      await client.join(room.roomId);
 
       client.emit('roomCreated', {
         message: 'Successfully created & joined room.',
       });
     } catch (error) {
       console.log(error);
+      client.emit('roomError', {
+        message:
+          'Unexpected error occured...try creating or joining another room',
+      });
     }
   }
 
@@ -110,16 +113,15 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     const { roomId, user } = payload;
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      const roomData = room[0];
-      await client.join(roomData.roomId);
+      await client.join(room.roomId);
 
-      client.broadcast.to(roomData.roomId).emit('userJoined', {
+      client.broadcast.to(room.roomId).emit('userJoined', {
         message: `${user} has joined the room.`,
       });
 
@@ -128,6 +130,10 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       });
     } catch (error) {
       console.log(error);
+      client.emit('roomError', {
+        message:
+          'Unexpected error occured...try creating or joining another room',
+      });
     }
   }
 
@@ -148,16 +154,12 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
 
     try {
       await client.leave(roomId);
-      console.log('EMAIL IN LEAVE ROOM', email);
       const response = await this.roomService.removeUserFromRoom(roomId, email);
       console.log('CURRENT USERS', response.data);
-      client.to(roomId).emit('userLeft', {
-        userId: client.data.user.email,
+      client.broadcast.to(roomId).emit('userLeft', {
         message: `${client.data.user.username} has left the room.`,
-        count: response.data.joinedUsers.length,
       });
       client.emit('roomLeft', {
-        roomId: roomId,
         message: 'Successfully left the room.',
       });
     } catch (error) {
@@ -176,9 +178,8 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
   ) {
     const { roomId, event } = payload;
     try {
-      console.log('IN SENDDRAWING EVENT');
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
@@ -212,11 +213,18 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       shapeType: string;
     },
   ) {
-    const { roomId, type, id, point, currentX, currentY, shapeType="pencil" } = payload;
-    console.log('IN SENDDRAWING UPDATE');
+    const {
+      roomId,
+      type,
+      id,
+      point,
+      currentX,
+      currentY,
+      shapeType = 'pencil',
+    } = payload;
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
@@ -258,7 +266,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     const { roomId, id } = payload;
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
@@ -283,7 +291,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     try {
       console.log('ID , EVENT', id, event);
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
@@ -294,6 +302,27 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       console.log(error);
       client.emit('roomError', {
         message: 'An error occurred in sending redo drawing event to the room.',
+      });
+    }
+  }
+
+  @UseGuards(WsGuard)
+  @SubscribeMessage('clearCanvas')
+  async handleClearCanvas(client: Socket, payload: { roomId: string }) {
+    const { roomId } = payload;
+    try {
+      const room = await this.roomService.checkIfRoomExists(roomId);
+      if (!room) {
+        client.emit('roomError', {
+          message: 'The specified room ID is invalid or expired.',
+        });
+        return;
+      }
+      client.broadcast.to(roomId).emit('receiveClearCanvas');
+    } catch (error) {
+      console.log(error);
+      client.emit('roomError', {
+        message: 'An error occurred in sending clear canvas event to the room.',
       });
     }
   }

@@ -41,8 +41,8 @@ export class RoomService {
   }
 
   async checkIfRoomExists(roomId: string) {
-    const room = await this.roomModel.find({ roomId });
-    if (!room || room.length == 0) {
+    const room = await this.roomModel.findOne({ roomId });
+    if (!room) {
       throw new HttpException(
         'This roomId does not exists or has been expired',
         HttpStatus.BAD_REQUEST,
@@ -89,7 +89,8 @@ export class RoomService {
   }
 
   async joinRoom(payload: CreateRoomDTO, email: string = '') {
-    const roomInfo = await this.roomModel.find({ roomId: payload.roomId });
+    const roomInfo = await this.roomModel.findOne({ roomId: payload.roomId });
+    console.log('IN JOIN room', roomInfo);
     if (!roomInfo) {
       throw new HttpException(
         'Room Id does not exists..Please check your roomId again',
@@ -106,7 +107,7 @@ export class RoomService {
     }
 
     const response = await this.roomModel.findOneAndUpdate(
-      { roomId: payload.roomId },
+      { roomId: roomInfo.roomId },
       {
         $addToSet: {
           joinedUsers: email,
@@ -137,7 +138,7 @@ export class RoomService {
       );
     }
 
-    const joinedUsersArr = roomData[0].joinedUsers;
+    const joinedUsersArr = roomData.joinedUsers;
     const updatedUsers = joinedUsersArr.filter((item) => item != email);
     console.log('EMAIL', email);
     console.log('UPDATED JOINED USER ARR AFTER DELETE', updatedUsers);
@@ -171,7 +172,7 @@ export class RoomService {
 
     return {
       message: 'User deleted successfully',
-      data: roomData[0].scoreBoard,
+      data: roomData?.scoreBoard,
     };
   }
 

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDTO } from './dto/register-user.dto';
@@ -20,9 +22,8 @@ export class AuthController {
 
   @Post('verifyUser')
   @UseGuards(AuthGuard)
-  verifyUser(@Req() req: Request){
-    const user= req['user'];
+  verifyUser(@Req() req: Request) {
+    const user = req['user'];
     return user;
   }
-
 }
