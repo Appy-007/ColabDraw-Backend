@@ -147,7 +147,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
         client.emit('correctGuess', {
           message: 'You correctly guessed the word !!',
         });
-        client.broadcast.to(roomId).emit('updateScoreBoard', {
+        this.server.to(roomId).emit('updateScoreBoard', {
           scoreBoard: response.data.scoreBoard,
         });
         return;
@@ -176,7 +176,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
       }
       const roomData = room[0];
       if (roomData.roundsLeft == 0) {
-        client.broadcast.to(roomData.roomId).emit('endGame', {
+        this.roomService.deleteRoomEntry(roomId);
+        this.server.to(roomData.roomId).emit('endGame', {
           mode: 'finished',
           message: 'Game ended ',
           scoreBoard: roomData.scoreBoard,

@@ -23,8 +23,8 @@ export class RoomController {
   @Post('joinRoom')
   @UseGuards(AuthGuard)
   joinRoom(@Req() req: Request, @Body() payload: CreateRoomDTO) {
-    console.log('USER IN JOIN ROOM', req['user']);
     const user = req['user'];
+    console.log('USER IN JOIN ROOM', user);
     return this.roomService.joinRoom(payload, user.email);
   }
 

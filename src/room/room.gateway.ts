@@ -39,7 +39,6 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     );
 
     client.on('disconnecting', async (reason) => {
-      // client.rooms is still populated here!
       const roomsToLeave = Array.from(client.rooms).filter(
         (room) => room !== client.id,
       );
@@ -56,7 +55,6 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     const activeRooms = Array.from(client.rooms).filter(
       (room) => room !== client.id,
     );
-
     console.log('ACTIVE ROOMS', activeRooms);
   }
 
@@ -84,10 +82,8 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
   @SubscribeMessage('createRoom')
   async handleCreateRoom(client: Socket, payload: { roomId: string }) {
     const { roomId } = payload;
-    // console.log('IN SERVER', payload);
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      console.log('ROOM DETAILS IN CREATE ROOM', room);
       if (!room || room.length == 0) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
@@ -98,12 +94,8 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       await client.join(roomData.roomId);
 
       client.emit('roomCreated', {
-        roomId: roomData.roomId,
-        count: roomData.joinedUsers.length,
         message: 'Successfully created & joined room.',
       });
-
-      console.log('EXECUTED CREATE ROOM SOCKET');
     } catch (error) {
       console.log(error);
     }
@@ -116,7 +108,6 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     payload: { roomId: string; user: string },
   ) {
     const { roomId, user } = payload;
-    // console.log('IN SERVER', payload);
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
       if (!room || room.length == 0) {
@@ -128,16 +119,11 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       const roomData = room[0];
       await client.join(roomData.roomId);
 
-      //BROADCAST to *all other clients* in the room (notification of new user)
       client.broadcast.to(roomData.roomId).emit('userJoined', {
-        userId: client.data?.user?.email,
-        username: user,
-        count: roomData.joinedUsers.length,
         message: `${user} has joined the room.`,
       });
 
       client.emit('roomJoined', {
-        count: roomData.joinedUsers.length,
         message: 'Successfully joined the room',
       });
     } catch (error) {
@@ -198,7 +184,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
         });
         return;
       }
-      client.to(roomId).emit('receiveDrawingEvent', {
+      client.broadcast.to(roomId).emit('receiveDrawingEvent', {
         event: event,
       });
     } catch (error) {
@@ -223,9 +209,10 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       point: number[];
       currentX: number;
       currentY: number;
+      shapeType: string;
     },
   ) {
-    const { roomId, type, id, point, currentX, currentY } = payload;
+    const { roomId, type, id, point, currentX, currentY, shapeType="pencil" } = payload;
     console.log('IN SENDDRAWING UPDATE');
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
@@ -236,17 +223,19 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
         return;
       }
       if (type === 'pencil_event') {
-        client.to(roomId).emit('receiveDrawingUpdate', {
+        client.broadcast.to(roomId).emit('receiveDrawingUpdate', {
           id,
           type,
           point,
+          shapeType,
         });
       } else if (type === 'shape_event') {
-        client.to(roomId).emit('receiveDrawingUpdate', {
+        client.broadcast.to(roomId).emit('receiveDrawingUpdate', {
           id,
           type,
           currentX,
           currentY,
+          shapeType,
         });
       }
     } catch (error) {

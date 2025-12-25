@@ -36,6 +36,10 @@ export class RoomService {
     return this.currentWordsForActiveRooms[roomId];
   }
 
+  deleteRoomEntry(roomId: string){
+    delete this.currentWordsForActiveRooms[roomId];
+  }
+
   async checkIfRoomExists(roomId: string) {
     const room = await this.roomModel.find({ roomId });
     if (!room || room.length == 0) {

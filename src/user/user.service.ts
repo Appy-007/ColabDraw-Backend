@@ -28,7 +28,6 @@ export class UserService {
     if (!userId || !username || !email) return {};
 
     const payload = { sub: userId, username: username, email: email };
-    console.log('CREATE TOKEN PAYLOAD', payload);
 
     return {
       access_token: await this.jwtService.signAsync(payload),
@@ -53,8 +52,6 @@ export class UserService {
         email: payload.email,
         password: hasedPassword,
       });
-
-      console.log('RESPONSE FROM USERMODEL ', response);
 
       const token = await this.createToken(
         response._id.toString(),
