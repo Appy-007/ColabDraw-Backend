@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { RoomService } from './room.service';
-import { CreateRoomDTO } from './dto/create-room.dto';
+import { CreateRoomDTO, JoinRoomDTO } from './dto/create-room.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import type { Request } from 'express';
 import { CheckRoomIdDTO } from './dto/check-roomId.dto';
@@ -22,7 +22,7 @@ export class RoomController {
 
   @Post('joinRoom')
   @UseGuards(AuthGuard)
-  joinRoom(@Req() req: Request, @Body() payload: CreateRoomDTO) {
+  joinRoom(@Req() req: Request, @Body() payload: JoinRoomDTO) {
     const user = req['user'];
     console.log('USER IN JOIN ROOM', user);
     return this.roomService.joinRoom(payload, user.email);

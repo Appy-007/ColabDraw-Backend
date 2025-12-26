@@ -3,7 +3,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Room } from './schemas/room.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CreateRoomDTO } from './dto/create-room.dto';
+import { CreateRoomDTO, JoinRoomDTO } from './dto/create-room.dto';
 import { UserService } from 'src/user/user.service';
 
 const TEST_WORDS = [
@@ -74,7 +74,7 @@ export class RoomService {
     const expiredTime = new Date(expirationTimeMs);
     const roomData = {
       roomId: payload.roomId,
-      roundsLeft: 3,
+      roundsLeft: payload.rounds || 3,
       ownerName: payload.name,
       ownerEmailId: email,
       expiredTime,
@@ -88,7 +88,7 @@ export class RoomService {
     };
   }
 
-  async joinRoom(payload: CreateRoomDTO, email: string = '') {
+  async joinRoom(payload: JoinRoomDTO, email: string = '') {
     const roomInfo = await this.roomModel.findOne({ roomId: payload.roomId });
     console.log('IN JOIN room', roomInfo);
     if (!roomInfo) {
