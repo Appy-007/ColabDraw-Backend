@@ -55,7 +55,7 @@ export class AuthService {
     };
 
     return {
-      message: 'Logged in successfully',
+      message: 'User Logged in successfully',
       data: resData,
     };
   }

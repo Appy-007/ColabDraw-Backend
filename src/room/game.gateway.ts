@@ -39,11 +39,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
     );
 
     client.on('disconnecting', (reason) => {
-      // client.rooms is still populated here!
-
       console.log('DISCONNECTING. ROOMS TO LEAVE:', reason);
-
-      // Now you can perform the room cleanup logic here
     });
   }
 
@@ -54,15 +50,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
 
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      const roomData = room[0];
-
-      const currentRound = roomData.roundsLeft;
+      const currentRound = room.roundsLeft;
 
       const selectedWord = this.roomService.selectRandomWord();
       const maskedWord = selectedWord.replace(/[a-zA-Z]/g, '_');
@@ -80,7 +74,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
         maskedWord: selectedWord,
       });
 
-      client.broadcast.to(roomData.roomId).emit('receiveStartGame', {
+      client.broadcast.to(room.roomId).emit('receiveStartGame', {
         mode: 'playing',
         drawer: user,
         word: maskedWord,
@@ -101,13 +95,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
 
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      const roomData = room[0];
+      const roomData = room;
       const selectedWord =
         this.roomService.getCurrentWordForActiveRooms(roomId);
       if (!selectedWord || !word?.trim()) {
@@ -168,19 +162,22 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
     const { roomId } = payload;
     try {
       const room = await this.roomService.checkIfRoomExists(roomId);
-      if (!room || room.length == 0) {
+      if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
         });
         return;
       }
-      const roomData = room[0];
-      if (roomData.roundsLeft == 0) {
+      if (room.roundsLeft == 0) {
         this.roomService.deleteRoomEntry(roomId);
-        this.server.to(roomData.roomId).emit('endGame', {
+        this.server.to(room.roomId).emit('endGame', {
           mode: 'finished',
           message: 'Game ended ',
-          scoreBoard: roomData.scoreBoard,
+          scoreBoard: room.scoreBoard,
+        });
+      } else {
+        client.broadcast.to(room.roomId).emit('receiveRoundEnd', {
+          message: 'Round ended',
         });
       }
     } catch (error) {
