@@ -168,13 +168,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
         });
         return;
       }
-      const roomData = room;
-      if (roomData.roundsLeft == 0) {
+      if (room.roundsLeft == 0) {
         this.roomService.deleteRoomEntry(roomId);
-        this.server.to(roomData.roomId).emit('endGame', {
+        this.server.to(room.roomId).emit('endGame', {
           mode: 'finished',
           message: 'Game ended ',
-          scoreBoard: roomData.scoreBoard,
+          scoreBoard: room.scoreBoard,
+        });
+      } else {
+        client.broadcast.to(room.roomId).emit('receiveRoundEnd', {
+          message: 'Round ended',
         });
       }
     } catch (error) {
