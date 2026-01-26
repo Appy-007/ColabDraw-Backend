@@ -28,7 +28,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer() server: Server;
 
   afterInit(server: Server) {
-    console.log('Whiteboard Gateway Initialized.');
+    console.log('Game Logic Gateway Initialized.');
     server.use(WsMiddleWare(this.jwtService) as any);
   }
 

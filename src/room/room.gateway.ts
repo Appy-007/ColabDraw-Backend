@@ -90,6 +90,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
         });
         return;
       }
+      client.data.roomId = room.roomId;
       await client.join(room.roomId);
 
       client.emit('roomCreated', {
@@ -119,6 +120,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
         });
         return;
       }
+      client.data.roomId = room.roomId;
       await client.join(room.roomId);
 
       client.broadcast.to(room.roomId).emit('userJoined', {
@@ -172,13 +174,11 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
 
   @UseGuards(WsGuard)
   @SubscribeMessage('sendDrawingEvent')
-  async handleDrawingEvent(
-    client: Socket,
-    payload: { roomId: string; event: any },
-  ) {
+  handleDrawingEvent(client: Socket, payload: { roomId: string; event: any }) {
     const { roomId, event } = payload;
     try {
-      const room = await this.roomService.checkIfRoomExists(roomId);
+      // const room = await this.roomService.checkIfRoomExists(roomId);
+      const room = client?.data?.roomId;
       if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
@@ -201,7 +201,7 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
 
   @UseGuards(WsGuard)
   @SubscribeMessage('sendDrawingUpdate')
-  async handleDrawingUpdate(
+  handleDrawingUpdate(
     client: Socket,
     payload: {
       roomId: string;
@@ -223,7 +223,8 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
       shapeType = 'pencil',
     } = payload;
     try {
-      const room = await this.roomService.checkIfRoomExists(roomId);
+      // const room = await this.roomService.checkIfRoomExists(roomId);
+      const room = client?.data?.roomId;
       if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
@@ -308,10 +309,11 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
 
   @UseGuards(WsGuard)
   @SubscribeMessage('clearCanvas')
-  async handleClearCanvas(client: Socket, payload: { roomId: string }) {
+  handleClearCanvas(client: Socket, payload: { roomId: string }) {
     const { roomId } = payload;
     try {
-      const room = await this.roomService.checkIfRoomExists(roomId);
+      // const room = await this.roomService.checkIfRoomExists(roomId);
+      const room = client?.data?.roomId;
       if (!room) {
         client.emit('roomError', {
           message: 'The specified room ID is invalid or expired.',
